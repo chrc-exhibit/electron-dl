@@ -136,6 +136,8 @@ module.exports = (options = {}) => {
 	});
 };
 
+module.exports.registerListener = registerListener;
+
 module.exports.download = (window_, url, options) => new Promise((resolve, reject) => {
 	options = {
 		...options,
