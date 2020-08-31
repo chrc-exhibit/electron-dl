@@ -114,10 +114,12 @@ function registerListener(session, options, callback = () => {}) {
 				if (typeof options.onCancel === 'function') {
 					options.onCancel(item);
 				}
+
+				callback(new Error(`The download of ${item.getFilename()} was cancelled`), item);
 			} else if (state === 'interrupted') {
 				const message = pupa(errorMessage, {filename: item.getFilename()});
 				dialog.showErrorBox(errorTitle, message);
-				callback(new Error(message));
+				callback(new Error(message), item);
 			} else if (state === 'completed') {
 				if (process.platform === 'darwin') {
 					app.dock.downloadFinished(filePath);
