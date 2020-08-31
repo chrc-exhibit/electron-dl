@@ -62,7 +62,12 @@ function registerListener(session, options, callback = () => {}) {
 
 		item.on('updated', () => {
 			receivedBytes = [...downloadItems].reduce((receivedBytes, item) => {
-				receivedBytes += item.getReceivedBytes();
+				try {
+					receivedBytes += item.getReceivedBytes();
+				} catch (error) {
+					console.warn('Unexpected error on item update:', {error, item});
+				}
+
 				return receivedBytes;
 			}, completedBytes);
 
