@@ -1,6 +1,6 @@
 'use strict';
 const path = require('path');
-const {app, BrowserWindow, shell, dialog} = require('electron');
+const {app, BrowserWindow, shell, dialog, WebContents} = require('electron');
 const unusedFilename = require('unused-filename');
 const pupa = require('pupa');
 const extName = require('ext-name');
@@ -28,14 +28,42 @@ function registerListener(session, options, callback = () => {}) {
 		...options
 	};
 
+
+	/**
+	 * @arg {Event} event
+	 * @arg {DownloadItem} item
+	 * @arg {WebContents} webContents
+	 */
 	const listener = (event, item, webContents) => {
+		let hostWebContents = webContents;
+		try {
+			if (webContents.getType() === 'webview') {
+				({hostWebContents} = webContents);
+			}
+		} catch (error) {
+			item.cancel();
+			if (!activeDownloadItems()) {
+				let window_;
+				try {
+					window_ = BrowserWindow.fromWebContents(hostWebContents);
+					window_.setProgressBar(-1);
+				} catch (error) {
+					window_ = new BrowserWindow({
+						show: false,
+					});
+					window_.setProgressBar(-1);
+					window_.destroy();
+				}
+				receivedBytes = 0;
+				completedBytes = 0;
+				totalBytes = 0;
+			}
+			callback(new Error(`The download of ${item && item.getFilename()} failed: ${error}`,), item);
+			return;
+		}
+
 		downloadItems.add(item);
 		totalBytes += item.getTotalBytes();
-
-		let hostWebContents = webContents;
-		if (webContents.getType() === 'webview') {
-			({hostWebContents} = webContents);
-		}
 
 		const window_ = BrowserWindow.fromWebContents(hostWebContents);
 
@@ -86,7 +114,11 @@ function registerListener(session, options, callback = () => {}) {
 				options.onProgress({
 					percent: itemTotalBytes ? itemTransferredBytes / itemTotalBytes : 0,
 					transferredBytes: itemTransferredBytes,
-					totalBytes: itemTotalBytes
+					totalBytes: itemTotalBytes,
+					context: {
+						currentItems: activeDownloadItems(),
+						currentProgress: progressDownloadItems(),
+					}
 				});
 			}
 		});
